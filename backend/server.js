@@ -16,19 +16,40 @@ connectDB();
 
 const app = express();
 
-// CORS — allow frontend origin in production, all in dev
-const allowedOrigins = process.env.CLIENT_URL
-  ? [process.env.CLIENT_URL]
-  : ['http://localhost:5173', 'http://localhost:3000'];
+// CORS — allow configured frontend origins and Railway app domains in production
+const parseOrigins = (...values) => {
+  const origins = values
+    .filter(Boolean)
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return new Set(origins);
+};
+
+const allowedOrigins = parseOrigins(
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  process.env.ALLOWED_ORIGINS,
+  'http://localhost:5173',
+  'http://localhost:3000'
+);
+
+const railwayAppPattern = /^https:\/\/team-task-manager(?:-[a-z0-9-]+)?\.up\.railway\.app$/i;
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const isAllowedOrigin = allowedOrigins.has(origin);
+    const isRailwayAppOrigin = railwayAppPattern.test(origin);
+
+    if (isDevelopment || isAllowedOrigin || isRailwayAppOrigin) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   credentials: true,
