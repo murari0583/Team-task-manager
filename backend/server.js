@@ -16,16 +16,17 @@ connectDB();
 
 const app = express();
 
-// CORS — allow frontend origin in production, all in dev
-const allowedOrigins = process.env.CLIENT_URL
-  ? [process.env.CLIENT_URL]
-  : ['http://localhost:5173', 'http://localhost:3000'];
+// CORS — allow Railway production domain and localhost for development
+const allowedOrigins = [
+  'https://team-task-manager.up.railway.app',
+  'http://localhost:3000',
+];
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
