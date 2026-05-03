@@ -1,11 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { UserIcon, LockClosedIcon } from '@heroicons/react/24/solid';
+import { UserIcon, LockClosedIcon, IdentificationIcon } from '@heroicons/react/24/solid';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useContext(AuthContext);
@@ -14,7 +15,7 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const res = await login(email, password);
+    const res = await login(email, password, role);
     setLoading(false);
     if (!res.success) {
       setError(res.message);
@@ -81,6 +82,23 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+            </div>
+
+            {/* Role */}
+            <div style={{ display: 'flex', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '12px', overflow: 'hidden' }}>
+              <div style={{ backgroundColor: '#16a085', width: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <IdentificationIcon style={{ width: '20px', height: '20px', color: '#fff' }} />
+              </div>
+              <select
+                required
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                style={{ width: '100%', padding: '12px 14px', fontSize: '14px', border: 'none', outline: 'none', color: '#444', backgroundColor: '#fff', appearance: 'none', cursor: 'pointer' }}
+              >
+                <option value="" disabled>Select role</option>
+                <option value="Member">Member</option>
+                <option value="Admin">Admin</option>
+              </select>
             </div>
 
             {/* Forgot Password */}

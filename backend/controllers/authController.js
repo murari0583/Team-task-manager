@@ -6,14 +6,35 @@ import generateToken from '../utils/generateToken.js';
 // @access  Public
 export const authUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
+
+    const normalizeRole = (value) => {
+      if (!value) return null;
+      const lower = String(value).trim().toLowerCase();
+      if (lower === 'admin') return 'Admin';
+      if (lower === 'member') return 'Member';
+      return null;
+    };
+
+    const selectedRole = normalizeRole(role);
+
+    if (!selectedRole) {
+      return res.status(400).json({ message: 'Please select a valid role to login' });
+    }
+
     const user = await User.findOne({ email });
+    const userRole = normalizeRole(user?.role);
+
     if (user && (await user.matchPassword(password))) {
+      if (userRole !== selectedRole) {
+        return res.status(401).json({ message: `This account is not registered as ${selectedRole}` });
+      }
+
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: userRole || user.role,
         token: generateToken(user._id),
       });
     } else {
@@ -31,6 +52,11 @@ export const registerUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
+    const normalizeRole = (value) => {
+      const lower = String(value || 'member').trim().toLowerCase();
+      return lower === 'admin' ? 'Admin' : 'Member';
+    };
+
     // Validate required fields
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide name, email, and password' });
@@ -41,11 +67,18 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const requestedRole = normalizeRole(role);
+
+    // Public signup can only create Member accounts.
+    if (requestedRole === 'Admin') {
+      return res.status(403).json({ message: 'Admin account creation is restricted. Please contact an existing admin.' });
+    }
+
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'Member',
+      role: 'Member',
     });
 
     if (user) {
