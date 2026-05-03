@@ -32,8 +32,9 @@ const allowedOrigins = parseOrigins(
   process.env.CLIENT_URL,
   process.env.FRONTEND_URL,
   process.env.ALLOWED_ORIGINS,
-  'http://localhost:5173',
-  'http://localhost:3000'
+  'https://team-task-manager.up.railway.app',
+  'http://localhost:3000',
+  'http://localhost:5173'
 );
 
 const railwayAppPattern = /^https:\/\/team-task-manager(?:-[a-z0-9-]+)?\.up\.railway\.app$/i;
