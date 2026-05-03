@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 
 export const AuthContext = createContext();
 
-// Use env var in production, fallback to localhost in development
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// In dev, Vite proxy forwards /api → localhost:5000
+// In prod, VITE_API_URL is the Railway backend URL
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -23,7 +24,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
-      const { data } = await axios.post(`${API_URL}/api/auth/login`, { email, password }, config);
+      const { data } = await axios.post(`${API_BASE}/auth/login`, { email, password }, config);
       setUser(data);
       localStorage.setItem('userInfo', JSON.stringify(data));
       navigate('/dashboard');
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password, role) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
-      const { data } = await axios.post(`${API_URL}/api/auth/register`, { name, email, password, role }, config);
+      const { data } = await axios.post(`${API_BASE}/auth/register`, { name, email, password, role }, config);
       setUser(data);
       localStorage.setItem('userInfo', JSON.stringify(data));
       navigate('/dashboard');

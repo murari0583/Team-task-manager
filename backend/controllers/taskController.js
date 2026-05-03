@@ -76,7 +76,12 @@ export const updateTask = async (req, res) => {
 
       task.title = title || task.title;
       task.description = description || task.description;
-      if (assignedTo !== undefined) task.assignedTo = assignedTo;
+      
+      // Only Admin can assign/re-assign tasks
+      if (req.user.role === 'Admin' && assignedTo !== undefined) {
+        task.assignedTo = assignedTo;
+      }
+
       task.status = status || task.status;
       task.dueDate = dueDate || task.dueDate;
 

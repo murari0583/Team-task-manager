@@ -3,150 +3,151 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
+const StatCard = ({ label, value, color, icon }) => (
+  <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+      {icon}
+    </div>
+    <div>
+      <div style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>{label}</div>
+    </div>
+  </div>
+);
+
+const statusStyle = (status) => {
+  if (status === 'Done') return { backgroundColor: '#d1fae5', color: '#065f46' };
+  if (status === 'In Progress') return { backgroundColor: '#dbeafe', color: '#1e40af' };
+  return { backgroundColor: '#f1f5f9', color: '#475569' };
+};
+
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [usersCount, setUsersCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin = user.role === 'Admin';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const config = {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        };
-        const [{ data: tasksData }, { data: projectsData }] = await Promise.all([
-          axios.get('http://localhost:5000/api/tasks', config),
-          axios.get('http://localhost:5000/api/projects', config),
-        ]);
+        const config = { headers: { Authorization: `Bearer ${user.token}` } };
+        const reqs = [
+          axios.get(`${API_BASE}/tasks`, config),
+          axios.get(`${API_BASE}/projects`, config),
+        ];
         
-        setTasks(tasksData);
-        setProjects(projectsData);
-        setLoading(false);
+        if (isAdmin) {
+          reqs.push(axios.get(`${API_BASE}/auth/users`, config));
+        }
+
+        const responses = await Promise.all(reqs);
+        setTasks(responses[0].data);
+        setProjects(responses[1].data);
+        if (isAdmin) setUsersCount(responses[2].data.length);
+
       } catch (error) {
         console.error(error);
+      } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, isAdmin]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+        <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: '#16a085', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    );
   }
 
+  // Member Calculations
   const myTasks = tasks.filter(t => t.assignedTo && t.assignedTo._id === user._id);
-  const pendingTasks = myTasks.filter(t => t.status !== 'Done');
-  const overdueTasks = pendingTasks.filter(t => new Date(t.dueDate) < new Date());
+  const myPendingTasks = myTasks.filter(t => t.status !== 'Done');
+  const myOverdueTasks = myPendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
+  
+  // Admin Calculations
+  const allPendingTasks = tasks.filter(t => t.status !== 'Done');
+  const allOverdueTasks = allPendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Welcome back, {user.name.split(' ')[0]}!</h1>
-        <p className="mt-2 text-sm text-slate-600">Here's what's happening with your projects today.</p>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+          {isAdmin ? `Admin Dashboard` : `Welcome back, ${user.name.split(' ')[0]}! 👋`}
+        </h1>
+        <p style={{ color: '#64748b', marginTop: '6px', fontSize: '14px' }}>
+          {isAdmin ? "Here's an overview of all system activity." : "Here's what's happening with your projects today."}
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <div className="bg-white overflow-hidden shadow-sm border border-slate-200 rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-indigo-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-slate-500 truncate">Total Projects</dt>
-                  <dd className="text-2xl font-bold text-slate-900">{projects.length}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white overflow-hidden shadow-sm border border-slate-200 rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-yellow-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-slate-500 truncate">My Pending Tasks</dt>
-                  <dd className="text-2xl font-bold text-slate-900">{pendingTasks.length}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow-sm border border-slate-200 rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-red-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-slate-500 truncate">Overdue Tasks</dt>
-                  <dd className="text-2xl font-bold text-slate-900">{overdueTasks.length}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+        {isAdmin ? (
+          <>
+            <StatCard label="Total Projects" value={projects.length} color="#16a085" icon="📁" />
+            <StatCard label="Total Users" value={usersCount} color="#3b82f6" icon="👥" />
+            <StatCard label="Total Tasks" value={tasks.length} color="#f59e0b" icon="📋" />
+            <StatCard label="Total Overdue" value={allOverdueTasks.length} color="#ef4444" icon="⚠️" />
+          </>
+        ) : (
+          <>
+            <StatCard label="Total Projects" value={projects.length} color="#16a085" icon="📁" />
+            <StatCard label="My Pending Tasks" value={myPendingTasks.length} color="#f59e0b" icon="⏳" />
+            <StatCard label="Overdue Tasks" value={myOverdueTasks.length} color="#ef4444" icon="⚠️" />
+            <StatCard label="Tasks Completed" value={myTasks.filter(t => t.status === 'Done').length} color="#10b981" icon="✅" />
+          </>
+        )}
       </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Two column content */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         {/* Recent Projects */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-slate-900">Recent Projects</h2>
-            <Link to="/projects" className="text-sm font-medium text-primary hover:text-indigo-500">View all</Link>
+        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Recent Projects</h2>
+            <Link to="/projects" style={{ fontSize: '13px', color: '#16a085', textDecoration: 'none', fontWeight: '600' }}>View all →</Link>
           </div>
-          <div className="space-y-4">
-            {projects.slice(0, 3).map(project => (
-              <div key={project._id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                <h3 className="text-md font-semibold text-slate-800">{project.name}</h3>
-                <p className="text-sm text-slate-500 truncate">{project.description}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {projects.slice(0, 4).map(project => (
+              <div key={project._id} style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px' }}>{project.name}</div>
+                <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.description || 'No description'}</div>
               </div>
             ))}
-            {projects.length === 0 && <p className="text-sm text-slate-500">No projects found.</p>}
+            {projects.length === 0 && <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>No projects yet.</p>}
           </div>
         </div>
 
-        {/* My Tasks */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-slate-900">My Priority Tasks</h2>
-            <Link to="/tasks" className="text-sm font-medium text-primary hover:text-indigo-500">View all</Link>
+        {/* Pending Tasks */}
+        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>{isAdmin ? 'All Pending Tasks' : 'My Pending Tasks'}</h2>
+            <Link to="/tasks" style={{ fontSize: '13px', color: '#16a085', textDecoration: 'none', fontWeight: '600' }}>View all →</Link>
           </div>
-          <div className="space-y-4">
-            {pendingTasks.slice(0, 5).map(task => (
-              <div key={task._id} className="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(isAdmin ? allPendingTasks : myPendingTasks).slice(0, 5).map(task => (
+              <div key={task._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-800">{task.title}</h3>
-                  <p className="text-xs text-slate-500">Due: {new Date(task.dueDate).toLocaleDateString()}</p>
+                  <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{task.title}</div>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
+                    {task.dueDate && <span style={{ color: '#94a3b8', fontSize: '11px' }}>Due: {new Date(task.dueDate).toLocaleDateString()}</span>}
+                    {isAdmin && task.assignedTo && <span style={{ color: '#16a085', fontSize: '11px', fontWeight: '600' }}>👤 {task.assignedTo.name}</span>}
+                  </div>
                 </div>
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                  task.status === 'Todo' ? 'bg-slate-100 text-slate-600' : 
-                  task.status === 'In Progress' ? 'bg-blue-100 text-blue-600' : 
-                  'bg-green-100 text-green-600'
-                }`}>
+                <span style={{ ...statusStyle(task.status), padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>
                   {task.status}
                 </span>
               </div>
             ))}
-            {pendingTasks.length === 0 && <p className="text-sm text-slate-500">No pending tasks. Great job!</p>}
+            {(isAdmin ? allPendingTasks : myPendingTasks).length === 0 && <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>🎉 All tasks done! Great job.</p>}
           </div>
         </div>
       </div>

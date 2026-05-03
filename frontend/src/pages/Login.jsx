@@ -7,15 +7,31 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     const res = await login(email, password);
+    setLoading(false);
     if (!res.success) {
       setError(res.message);
     }
+  };
+
+  const btnStyle = {
+    width: '100%',
+    backgroundColor: loading ? '#128a72' : '#16a085',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '13px',
+    fontSize: '16px',
+    cursor: loading ? 'not-allowed' : 'pointer',
+    transition: 'background 0.2s',
+    opacity: loading ? 0.85 : 1,
   };
 
   return (
@@ -33,7 +49,7 @@ const Login = () => {
 
             {error && (
               <div style={{ background: '#fff0f0', color: '#c0392b', padding: '10px 12px', borderRadius: '4px', fontSize: '13px', marginBottom: '14px', border: '1px solid #ffdada' }}>
-                {error}
+                ⚠️ {error}
               </div>
             )}
 
@@ -43,7 +59,7 @@ const Login = () => {
                 <UserIcon style={{ width: '20px', height: '20px', color: '#fff' }} />
               </div>
               <input
-                type="text"
+                type="email"
                 required
                 style={{ width: '100%', padding: '12px 14px', fontSize: '14px', border: 'none', outline: 'none', color: '#444' }}
                 placeholder="Email or Phone"
@@ -75,13 +91,8 @@ const Login = () => {
             </div>
 
             {/* Login Button */}
-            <button
-              type="submit"
-              style={{ width: '100%', backgroundColor: '#16a085', color: '#fff', border: 'none', borderRadius: '4px', padding: '13px', fontSize: '16px', cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={e => e.target.style.backgroundColor = '#12876f'}
-              onMouseOut={e => e.target.style.backgroundColor = '#16a085'}
-            >
-              Login
+            <button type="submit" disabled={loading} style={btnStyle}>
+              {loading ? 'Signing in...' : 'Login'}
             </button>
           </form>
 

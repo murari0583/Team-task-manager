@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
 const ProjectDetails = () => {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
@@ -12,6 +14,7 @@ const ProjectDetails = () => {
   const [loading, setLoading] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', assignedTo: '', dueDate: '' });
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchProjectData();
@@ -22,21 +25,21 @@ const ProjectDetails = () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       const [{ data: projectData }, { data: tasksData }] = await Promise.all([
-        axios.get(`http://localhost:5000/api/projects/${id}`, config),
-        axios.get(`http://localhost:5000/api/tasks?project=${id}`, config)
+        axios.get(`${API_BASE}/projects/${id}`, config),
+        axios.get(`${API_BASE}/tasks?project=${id}`, config)
       ]);
       setProject(projectData);
       setTasks(tasksData);
-      setLoading(false);
     } catch (error) {
       console.error(error);
+    } finally {
       setLoading(false);
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/auth/users', {
+      const { data } = await axios.get(`${API_BASE}/auth/users`, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setUsers(data);
@@ -47,8 +50,9 @@ const ProjectDetails = () => {
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
+    setCreating(true);
     try {
-      await axios.post('http://localhost:5000/api/tasks', { ...newTask, project: id }, {
+      await axios.post(`${API_BASE}/tasks`, { ...newTask, project: id }, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setShowTaskModal(false);
@@ -56,117 +60,142 @@ const ProjectDetails = () => {
       fetchProjectData();
     } catch (error) {
       console.error(error);
+    } finally {
+      setCreating(false);
     }
   };
 
-  if (loading) return <div className="flex justify-center mt-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div></div>;
-  if (!project) return <div className="text-center mt-10">Project not found</div>;
+  const statusStyle = (status) => {
+    if (status === 'Done') return { backgroundColor: '#d1fae5', color: '#065f46' };
+    if (status === 'In Progress') return { backgroundColor: '#dbeafe', color: '#1e40af' };
+    return { backgroundColor: '#f1f5f9', color: '#475569' };
+  };
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+      <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: '#16a085', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+
+  if (!project) return <div style={{ textAlign: 'center', marginTop: '40px', color: '#64748b' }}>Project not found</div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <Link to="/projects" className="text-sm text-primary hover:underline mb-2 inline-block">&larr; Back to Projects</Link>
-          <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
-          <p className="mt-2 text-slate-600">{project.description}</p>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px 24px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <Link to="/projects" style={{ fontSize: '14px', color: '#16a085', textDecoration: 'none', fontWeight: '600', display: 'inline-block', marginBottom: '12px' }}>
+          &larr; Back to Projects
+        </Link>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', margin: '0 0 8px' }}>{project.name}</h1>
+            <p style={{ color: '#64748b', fontSize: '15px', margin: 0, lineHeight: 1.5, maxWidth: '600px' }}>{project.description}</p>
+          </div>
+          {user.role === 'Admin' && (
+            <button 
+              onClick={() => setShowTaskModal(true)}
+              style={{ backgroundColor: '#16a085', color: '#fff', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+            >
+              + Assign New Task
+            </button>
+          )}
         </div>
-        {user.role === 'Admin' && (
-          <button 
-            onClick={() => setShowTaskModal(true)}
-            className="bg-primary hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            + Add Task
-          </button>
-        )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden mb-8 p-6">
-         <h2 className="text-lg font-semibold text-slate-900 mb-4">Project Members</h2>
-         <div className="flex gap-2 flex-wrap">
-           {project.members && project.members.length > 0 ? project.members.map(member => (
-             <span key={member._id} className="bg-indigo-50 text-primary px-3 py-1 rounded-full text-sm font-medium">
-               {member.name}
-             </span>
-           )) : <span className="text-sm text-slate-500">No members assigned.</span>}
-         </div>
+      {/* Project Members */}
+      <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 16px' }}>Project Members</h2>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {project.members && project.members.length > 0 ? project.members.map(member => (
+            <span key={member._id} style={{ backgroundColor: '#f1f5f9', color: '#334155', padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', border: '1px solid #e2e8f0' }}>
+              👤 {member.name}
+            </span>
+          )) : <span style={{ fontSize: '14px', color: '#94a3b8' }}>No members assigned.</span>}
+        </div>
       </div>
 
-      <h2 className="text-xl font-bold text-slate-900 mb-4">Tasks</h2>
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <ul className="divide-y divide-slate-200">
-          {tasks.map(task => (
-            <li key={task._id} className="p-4 hover:bg-slate-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">{task.title}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{task.description}</p>
-                  <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
-                    <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</span>
-                    <span>Assigned to: {task.assignedTo ? task.assignedTo.name : 'Unassigned'}</span>
-                  </div>
+      {/* Tasks List */}
+      <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: '0 0 16px' }}>Project Tasks ({tasks.length})</h2>
+      <div style={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {tasks.map((task, index) => (
+            <li key={task._id} style={{ padding: '20px', borderBottom: index === tasks.length - 1 ? 'none' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: '#fff' }}>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: '0 0 6px' }}>{task.title}</h3>
+                <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 12px', lineHeight: 1.5 }}>{task.description}</p>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                    📅 Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                    👤 Assigned to: {task.assignedTo ? task.assignedTo.name : 'Unassigned'}
+                  </span>
                 </div>
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  task.status === 'Todo' ? 'bg-slate-100 text-slate-800' : 
-                  task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
-                  'bg-green-100 text-green-800'
-                }`}>
-                  {task.status}
-                </span>
               </div>
+              <span style={{ ...statusStyle(task.status), padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                {task.status}
+              </span>
             </li>
           ))}
           {tasks.length === 0 && (
-            <li className="p-4 text-center text-sm text-slate-500">No tasks in this project yet.</li>
+            <li style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>No tasks in this project yet.</li>
           )}
         </ul>
       </div>
 
-      {/* Create Task Modal */}
+      {/* Admin Create Task Modal */}
       {showTaskModal && (
-        <div className="fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-4">Add Task to Project</h2>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 999 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <span style={{ backgroundColor: '#16a085', color: '#fff', fontSize: '10px', fontWeight: '800', padding: '3px 8px', borderRadius: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin</span>
+              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Assign New Task</h2>
+            </div>
             <form onSubmit={handleCreateTask}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Task Title</label>
-                  <input 
-                    type="text" required 
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Description</label>
-                  <textarea 
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-primary focus:ring-primary sm:text-sm" rows="2"
-                    value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})}
-                  ></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Assign To</label>
-                  <select 
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-primary focus:ring-primary sm:text-sm bg-white"
-                    value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})}
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map(u => (
-                      <option key={u._id} value={u._id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Due Date</label>
-                  <input 
-                    type="date"
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})}
-                  />
-                </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Task Title</label>
+                <input 
+                  type="text" required 
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})}
+                  placeholder="e.g. Design Homepage"
+                />
               </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowTaskModal(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-indigo-700">Create Task</button>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Description</label>
+                <textarea 
+                  rows="2"
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                  value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})}
+                  placeholder="Brief task details..."
+                />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Assign To</label>
+                <select 
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', backgroundColor: '#fff', cursor: 'pointer' }}
+                  value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map(u => (
+                    <option key={u._id} value={u._id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Due Date</label>
+                <input 
+                  type="date"
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" onClick={() => setShowTaskModal(false)} style={{ padding: '10px 18px', borderRadius: '8px', border: '1px solid #d1d5db', backgroundColor: '#fff', color: '#374151', fontWeight: '600', fontSize: '14px', cursor: 'pointer', width: '100%' }}>Cancel</button>
+                <button type="submit" disabled={creating} style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: '#16a085', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer', width: '100%' }}>
+                  {creating ? 'Assigning...' : 'Assign Task'}
+                </button>
               </div>
             </form>
           </div>

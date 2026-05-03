@@ -3,34 +3,36 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
 const Projects = () => {
   const { user } = useContext(AuthContext);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '' });
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    fetchProjects();
-  }, [user]);
+  useEffect(() => { fetchProjects(); }, [user]);
 
   const fetchProjects = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/projects', {
+      const { data } = await axios.get(`${API_BASE}/projects`, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setProjects(data);
-      setLoading(false);
     } catch (error) {
       console.error(error);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
+    setCreating(true);
     try {
-      await axios.post('http://localhost:5000/api/projects', newProject, {
+      await axios.post(`${API_BASE}/projects`, newProject, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setShowModal(false);
@@ -38,39 +40,54 @@ const Projects = () => {
       fetchProjects();
     } catch (error) {
       console.error(error);
+    } finally {
+      setCreating(false);
     }
   };
 
-  if (loading) return <div className="flex justify-center mt-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div></div>;
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+      <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: '#16a085', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Projects</h1>
+          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>{projects.length} total project{projects.length !== 1 ? 's' : ''}</p>
+        </div>
         {user.role === 'Admin' && (
-          <button 
+          <button
             onClick={() => setShowModal(true)}
-            className="bg-primary hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            style={{ backgroundColor: '#16a085', color: '#fff', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             + New Project
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
         {projects.map(project => (
-          <div key={project._id} className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-            <div className="p-6 flex-1">
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">{project.name}</h3>
-              <p className="text-slate-600 text-sm mb-4 line-clamp-3">{project.description}</p>
-              <div className="text-xs text-slate-500 mt-auto">
-                Created by {project.createdBy?.name || 'Unknown'}
-              </div>
+          <div key={project._id} style={{ backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.2s' }}
+            onMouseOver={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'}
+            onMouseOut={e => e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)'}
+          >
+            {/* Color bar */}
+            <div style={{ height: '5px', backgroundColor: '#16a085' }} />
+            <div style={{ padding: '20px', flex: 1 }}>
+              <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px' }}>{project.name}</h3>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: 0, lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {project.description || 'No description provided.'}
+              </p>
             </div>
-            <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 flex justify-between items-center">
-              <span className="text-xs font-medium text-slate-500">{project.members?.length || 0} Members</span>
-              <Link to={`/projects/${project._id}`} className="text-sm font-medium text-primary hover:text-indigo-700">
-                View Details &rarr;
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa' }}>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>👤 {project.createdBy?.name || 'Unknown'}</span>
+              <Link to={`/projects/${project._id}`} style={{ fontSize: '13px', fontWeight: '600', color: '#16a085', textDecoration: 'none' }}>
+                View Details →
               </Link>
             </div>
           </div>
@@ -78,41 +95,46 @@ const Projects = () => {
       </div>
 
       {projects.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-          <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-slate-900">No projects</h3>
-          <p className="mt-1 text-sm text-slate-500">Get started by creating a new project.</p>
+        <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: '#fff', borderRadius: '14px', border: '2px dashed #e2e8f0' }}>
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}>📂</div>
+          <h3 style={{ color: '#1e293b', fontWeight: '700', fontSize: '16px' }}>No projects yet</h3>
+          <p style={{ color: '#94a3b8', fontSize: '14px' }}>Get started by creating a new project.</p>
         </div>
       )}
 
-      {/* Create Project Modal */}
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-4">Create New Project</h2>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 999 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: '0 0 20px' }}>Create New Project</h2>
             <form onSubmit={handleCreateProject}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Project Name</label>
-                  <input 
-                    type="text" required 
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-primary focus:ring-primary sm:text-sm"
-                    value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Description</label>
-                  <textarea 
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 focus:border-primary focus:ring-primary sm:text-sm" rows="3"
-                    value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})}
-                  ></textarea>
-                </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Project Name</label>
+                <input
+                  type="text" required
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  value={newProject.name}
+                  onChange={e => setNewProject({ ...newProject, name: e.target.value })}
+                  placeholder="e.g. Website Redesign"
+                />
               </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-indigo-700">Create</button>
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Description</label>
+                <textarea
+                  rows="3"
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                  value={newProject.description}
+                  onChange={e => setNewProject({ ...newProject, description: e.target.value })}
+                  placeholder="Brief project description..."
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '10px 18px', borderRadius: '8px', border: '1px solid #d1d5db', backgroundColor: '#fff', color: '#374151', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={creating} style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', backgroundColor: '#16a085', color: '#fff', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+                  {creating ? 'Creating...' : 'Create Project'}
+                </button>
               </div>
             </form>
           </div>

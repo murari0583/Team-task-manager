@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { UserIcon, EnvelopeIcon, LockClosedIcon, IdentificationIcon } from '@heroicons/react/24/solid';
+import { EnvelopeIcon, LockClosedIcon, UserIcon, IdentificationIcon } from '@heroicons/react/24/solid';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -9,15 +9,31 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Member');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { register } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     const res = await register(name, email, password, role);
+    setLoading(false);
     if (!res.success) {
       setError(res.message);
     }
+  };
+
+  const btnStyle = {
+    width: '100%',
+    backgroundColor: loading ? '#128a72' : '#16a085',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '13px',
+    fontSize: '16px',
+    cursor: loading ? 'not-allowed' : 'pointer',
+    transition: 'background 0.2s',
+    opacity: loading ? 0.85 : 1,
   };
 
   return (
@@ -35,7 +51,7 @@ const Register = () => {
 
             {error && (
               <div style={{ background: '#fff0f0', color: '#c0392b', padding: '10px 12px', borderRadius: '4px', fontSize: '13px', marginBottom: '14px', border: '1px solid #ffdada' }}>
-                {error}
+                ⚠️ {error}
               </div>
             )}
 
@@ -100,13 +116,8 @@ const Register = () => {
             </div>
 
             {/* Signup Button */}
-            <button
-              type="submit"
-              style={{ width: '100%', backgroundColor: '#16a085', color: '#fff', border: 'none', borderRadius: '4px', padding: '13px', fontSize: '16px', cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={e => e.target.style.backgroundColor = '#12876f'}
-              onMouseOut={e => e.target.style.backgroundColor = '#16a085'}
-            >
-              Signup
+            <button type="submit" disabled={loading} style={btnStyle}>
+              {loading ? 'Creating account...' : 'Signup'}
             </button>
           </form>
 
