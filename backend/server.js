@@ -7,6 +7,7 @@ import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,10 +65,29 @@ app.use('/api/tasks', taskRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  app.get(/^(.*)$/, (req, res) =>
-    res.sendFile(path.resolve(__dirname, '../frontend', 'dist', 'index.html'))
-  );
+  const distPath = path.resolve(__dirname, '../frontend/dist');
+  const indexFile = path.join(distPath, 'index.html');
+
+  if (!fs.existsSync(indexFile)) {
+    console.error(`❌ Frontend build not found at ${indexFile}. Ensure build step runs before start.`);
+  }
+
+  app.use(express.static(distPath, { index: false }));
+
+  app.get(/^(?!\/api\/).*/, (req, res, next) => {
+    // Missing static assets should return 404, not index.html (prevents MIME errors).
+    if (req.path.startsWith('/assets/')) {
+      return res.status(404).send('Asset not found');
+    }
+
+    if (!fs.existsSync(indexFile)) {
+      return res.status(500).send('Frontend build missing on server');
+    }
+
+    return res.sendFile(indexFile, (err) => {
+      if (err) next(err);
+    });
+  });
 } else {
   app.get('/', (req, res) => {
     res.send('API is running...');
