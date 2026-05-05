@@ -1,5 +1,15 @@
 import Task from '../models/Task.js';
 
+const normalizeAssignees = (assignedTo) => {
+  if (Array.isArray(assignedTo)) {
+    return [...new Set(assignedTo.filter(Boolean).map((id) => String(id)))];
+  }
+  if (assignedTo) {
+    return [String(assignedTo)];
+  }
+  return [];
+};
+
 // @desc    Get all tasks (optionally filtered by project)
 // @route   GET /api/tasks
 // @access  Private
@@ -43,12 +53,13 @@ export const getTaskById = async (req, res) => {
 export const createTask = async (req, res) => {
   try {
     const { title, description, project, assignedTo, status, dueDate } = req.body;
+    const assignees = normalizeAssignees(assignedTo);
 
     const task = new Task({
       title,
       description,
       project,
-      assignedTo: assignedTo || null,
+      assignedTo: assignees,
       status: status || 'Todo',
       dueDate,
     });
@@ -69,8 +80,11 @@ export const updateTask = async (req, res) => {
     const task = await Task.findById(req.params.id);
 
     if (task) {
+      const assignedIds = normalizeAssignees(task.assignedTo);
+      const isAssignedUser = assignedIds.includes(String(req.user._id));
+
       // Check if user is admin or the assigned user
-      if (req.user.role !== 'Admin' && (!task.assignedTo || task.assignedTo.toString() !== req.user._id.toString())) {
+      if (req.user.role !== 'Admin' && !isAssignedUser) {
         return res.status(401).json({ message: 'Not authorized to update this task' });
       }
 
@@ -79,7 +93,7 @@ export const updateTask = async (req, res) => {
       
       // Only Admin can assign/re-assign tasks
       if (req.user.role === 'Admin' && assignedTo !== undefined) {
-        task.assignedTo = assignedTo;
+        task.assignedTo = normalizeAssignees(assignedTo);
       }
 
       task.status = status || task.status;

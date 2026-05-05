@@ -13,7 +13,7 @@ const ProjectDetails = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', description: '', assignedTo: '', dueDate: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', assignedTo: [], dueDate: '' });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ const ProjectDetails = () => {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setShowTaskModal(false);
-      setNewTask({ title: '', description: '', assignedTo: '', dueDate: '' });
+      setNewTask({ title: '', description: '', assignedTo: [], dueDate: '' });
       fetchProjectData();
     } catch (error) {
       console.error(error);
@@ -129,7 +129,7 @@ const ProjectDetails = () => {
                     📅 Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
                   </span>
                   <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                    👤 Assigned to: {task.assignedTo ? task.assignedTo.name : 'Unassigned'}
+                    👤 Assigned to: {Array.isArray(task.assignedTo) && task.assignedTo.length > 0 ? task.assignedTo.map((assignee) => assignee.name).join(', ') : 'Unassigned'}
                   </span>
                 </div>
               </div>
@@ -172,16 +172,21 @@ const ProjectDetails = () => {
                 />
               </div>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Assign To</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Assign To (you can select multiple)</label>
                 <select 
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', backgroundColor: '#fff', cursor: 'pointer' }}
-                  value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})}
+                  multiple
+                  style={{ width: '100%', minHeight: '120px', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', backgroundColor: '#fff', cursor: 'pointer' }}
+                  value={newTask.assignedTo}
+                  onChange={e => setNewTask({
+                    ...newTask,
+                    assignedTo: Array.from(e.target.selectedOptions, (option) => option.value)
+                  })}
                 >
-                  <option value="">Unassigned</option>
                   {users.map(u => (
                     <option key={u._id} value={u._id}>{u.name}</option>
                   ))}
                 </select>
+                <small style={{ display: 'block', marginTop: '6px', color: '#6b7280', fontSize: '12px' }}>Hold Ctrl (Windows) or Cmd (Mac) to select multiple members.</small>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Due Date</label>

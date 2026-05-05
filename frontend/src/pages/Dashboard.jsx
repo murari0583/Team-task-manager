@@ -68,7 +68,7 @@ const Dashboard = () => {
   }
 
   // Member Calculations
-  const myTasks = tasks.filter(t => t.assignedTo && t.assignedTo._id === user._id);
+  const myTasks = tasks.filter(t => Array.isArray(t.assignedTo) && t.assignedTo.some(a => a._id === user._id));
   const myPendingTasks = myTasks.filter(t => t.status !== 'Done');
   const myOverdueTasks = myPendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
   
@@ -139,7 +139,11 @@ const Dashboard = () => {
                   <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{task.title}</div>
                   <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
                     {task.dueDate && <span style={{ color: '#94a3b8', fontSize: '11px' }}>Due: {new Date(task.dueDate).toLocaleDateString()}</span>}
-                    {isAdmin && task.assignedTo && <span style={{ color: '#16a085', fontSize: '11px', fontWeight: '600' }}>👤 {task.assignedTo.name}</span>}
+                    {isAdmin && Array.isArray(task.assignedTo) && task.assignedTo.length > 0 && (
+                      <span style={{ color: '#16a085', fontSize: '11px', fontWeight: '600' }}>
+                        👤 {task.assignedTo.map(a => a.name).join(', ')}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <span style={{ ...statusStyle(task.status), padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>
