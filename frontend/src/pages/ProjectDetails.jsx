@@ -15,6 +15,7 @@ const ProjectDetails = () => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', assignedTo: [], dueDate: '' });
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
   const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
   useEffect(() => {
@@ -78,12 +79,15 @@ const ProjectDetails = () => {
 
   const handleTaskStatusChange = async (taskId, newStatus) => {
     try {
+      setError('');
       await axios.put(`${API_BASE}/tasks/${taskId}`, { status: newStatus }, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       fetchProjectData();
-    } catch (error) {
-      console.error('Failed to update task status:', error.response?.data?.message || error.message);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to update task status';
+      setError(errorMsg);
+      console.error('Failed to update task status:', errorMsg);
     }
   };
 
@@ -118,6 +122,12 @@ const ProjectDetails = () => {
           )}
         </div>
       </div>
+
+      {error && (
+        <div style={{ background: '#fff0f0', color: '#c0392b', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', marginBottom: '16px', border: '1px solid #ffdada' }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       {/* Project Members */}
       <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', marginBottom: '32px' }}>

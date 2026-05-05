@@ -82,9 +82,10 @@ export const updateTask = async (req, res) => {
     if (task) {
       const assignedIds = normalizeAssignees(task.assignedTo);
       const isAssignedUser = assignedIds.includes(String(req.user._id));
+      const isAdmin = String(req.user.role || '').toLowerCase() === 'admin';
 
       // Check if user is admin or the assigned user
-      if (req.user.role !== 'Admin' && !isAssignedUser) {
+      if (!isAdmin && !isAssignedUser) {
         return res.status(401).json({ message: 'Not authorized to update this task' });
       }
 
@@ -92,7 +93,7 @@ export const updateTask = async (req, res) => {
       task.description = description || task.description;
       
       // Only Admin can assign/re-assign tasks
-      if (req.user.role === 'Admin' && assignedTo !== undefined) {
+      if (isAdmin && assignedTo !== undefined) {
         task.assignedTo = normalizeAssignees(assignedTo);
       }
 
