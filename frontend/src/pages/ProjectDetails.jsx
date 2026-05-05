@@ -15,11 +15,12 @@ const ProjectDetails = () => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', assignedTo: [], dueDate: '' });
   const [creating, setCreating] = useState(false);
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
   useEffect(() => {
     fetchProjectData();
-    if (user.role === 'Admin') fetchUsers();
-  }, [id, user]);
+    if (isAdmin) fetchUsers();
+  }, [id, user, isAdmin]);
 
   const fetchProjectData = async () => {
     try {
@@ -92,7 +93,7 @@ const ProjectDetails = () => {
             <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', margin: '0 0 8px' }}>{project.name}</h1>
             <p style={{ color: '#64748b', fontSize: '15px', margin: 0, lineHeight: 1.5, maxWidth: '600px' }}>{project.description}</p>
           </div>
-          {user.role === 'Admin' && (
+          {isAdmin && (
             <button 
               onClick={() => setShowTaskModal(true)}
               style={{ backgroundColor: '#16a085', color: '#fff', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}

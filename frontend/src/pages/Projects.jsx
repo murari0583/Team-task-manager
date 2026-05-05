@@ -12,6 +12,7 @@ const Projects = () => {
   const [showModal, setShowModal] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '' });
   const [creating, setCreating] = useState(false);
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
   useEffect(() => { fetchProjects(); }, [user]);
 
@@ -59,7 +60,7 @@ const Projects = () => {
           <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Projects</h1>
           <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>{projects.length} total project{projects.length !== 1 ? 's' : ''}</p>
         </div>
-        {user.role === 'Admin' && (
+        {isAdmin && (
           <button
             onClick={() => setShowModal(true)}
             style={{ backgroundColor: '#16a085', color: '#fff', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}

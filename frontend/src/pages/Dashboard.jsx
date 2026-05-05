@@ -30,25 +30,27 @@ const Dashboard = () => {
   const [usersCount, setUsersCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = user.role === 'Admin';
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        const reqs = [
-          axios.get(`${API_BASE}/tasks`, config),
-          axios.get(`${API_BASE}/projects`, config),
-        ];
-        
-        if (isAdmin) {
-          reqs.push(axios.get(`${API_BASE}/auth/users`, config));
-        }
+        const requests = {
+          tasks: axios.get(`${API_BASE}/tasks`, config),
+          projects: axios.get(`${API_BASE}/projects`, config),
+          users: isAdmin ? axios.get(`${API_BASE}/auth/users`, config) : Promise.resolve({ data: [] }),
+        };
 
-        const responses = await Promise.all(reqs);
-        setTasks(responses[0].data);
-        setProjects(responses[1].data);
-        if (isAdmin) setUsersCount(responses[2].data.length);
+        const [tasksRes, projectsRes, usersRes] = await Promise.allSettled([
+          requests.tasks,
+          requests.projects,
+          requests.users,
+        ]);
+
+        if (tasksRes.status === 'fulfilled') setTasks(tasksRes.value.data);
+        if (projectsRes.status === 'fulfilled') setProjects(projectsRes.value.data);
+        if (isAdmin && usersRes.status === 'fulfilled') setUsersCount(usersRes.value.data.length);
 
       } catch (error) {
         console.error(error);
