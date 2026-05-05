@@ -72,6 +72,21 @@ const ProjectDetails = () => {
     return { backgroundColor: '#f1f5f9', color: '#475569' };
   };
 
+  const isUserAssignedToTask = (task) => {
+    return Array.isArray(task.assignedTo) && task.assignedTo.some(a => a._id === user._id);
+  };
+
+  const handleTaskStatusChange = async (taskId, newStatus) => {
+    try {
+      await axios.put(`${API_BASE}/tasks/${taskId}`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      fetchProjectData();
+    } catch (error) {
+      console.error('Failed to update task status:', error.response?.data?.message || error.message);
+    }
+  };
+
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
       <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: '#16a085', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -120,25 +135,45 @@ const ProjectDetails = () => {
       <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: '0 0 16px' }}>Project Tasks ({tasks.length})</h2>
       <div style={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {tasks.map((task, index) => (
-            <li key={task._id} style={{ padding: '20px', borderBottom: index === tasks.length - 1 ? 'none' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: '#fff' }}>
-              <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: '0 0 6px' }}>{task.title}</h3>
-                <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 12px', lineHeight: 1.5 }}>{task.description}</p>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                    📅 Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
-                  </span>
-                  <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                    👤 Assigned to: {Array.isArray(task.assignedTo) && task.assignedTo.length > 0 ? task.assignedTo.map((assignee) => assignee.name).join(', ') : 'Unassigned'}
-                  </span>
+          {tasks.map((task, index) => {
+            const isAssigned = isUserAssignedToTask(task);
+            const canUpdateStatus = isAdmin || isAssigned;
+
+            return (
+              <li key={task._id} style={{ padding: '20px', borderBottom: index === tasks.length - 1 ? 'none' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: isAssigned ? '#f0fdf4' : '#fff', borderLeft: isAssigned ? '4px solid #22c55e' : 'none' }}>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: '0 0 6px' }}>
+                    {task.title}
+                    {isAssigned && <span style={{ fontSize: '12px', marginLeft: '8px', backgroundColor: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>📌 Your Task</span>}
+                  </h3>
+                  <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 12px', lineHeight: 1.5 }}>{task.description}</p>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      📅 Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: '600', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      👤 Assigned to: {Array.isArray(task.assignedTo) && task.assignedTo.length > 0 ? task.assignedTo.map((assignee) => assignee.name).join(', ') : 'Unassigned'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <span style={{ ...statusStyle(task.status), padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                {task.status}
-              </span>
-            </li>
-          ))}
+                {canUpdateStatus ? (
+                  <select
+                    value={task.status}
+                    onChange={(e) => handleTaskStatusChange(task._id, e.target.value)}
+                    style={{ ...statusStyle(task.status), padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', border: '1px solid #e2e8f0', outline: 'none', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: '16px' }}
+                  >
+                    <option value="Todo">Todo</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Done">Done</option>
+                  </select>
+                ) : (
+                  <span style={{ ...statusStyle(task.status), padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap', marginLeft: '16px' }}>
+                    {task.status}
+                  </span>
+                )}
+              </li>
+            );
+          })}
           {tasks.length === 0 && (
             <li style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>No tasks in this project yet.</li>
           )}
