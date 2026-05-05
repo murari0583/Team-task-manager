@@ -111,6 +111,7 @@ const Register = () => {
                 style={{ width: '100%', padding: '12px 14px', fontSize: '14px', border: 'none', outline: 'none', color: '#444', backgroundColor: '#fff', appearance: 'none', cursor: 'pointer' }}
               >
                 <option value="Member">Member</option>
+                <option value="Admin">Admin</option>
               </select>
             </div>
 

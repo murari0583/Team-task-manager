@@ -69,16 +69,11 @@ export const registerUser = async (req, res) => {
 
     const requestedRole = normalizeRole(role);
 
-    // Public signup can only create Member accounts.
-    if (requestedRole === 'Admin') {
-      return res.status(403).json({ message: 'Admin account creation is restricted. Please contact an existing admin.' });
-    }
-
     const user = await User.create({
       name,
       email,
       password,
-      role: 'Member',
+      role: requestedRole,
     });
 
     if (user) {
